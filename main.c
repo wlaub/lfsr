@@ -66,6 +66,8 @@ typedef struct
     unsigned short taps;
     unsigned short index;
     unsigned short length;
+    unsigned short chance;
+    unsigned short diversity;
     unsigned short values[BUFL];
 } 
 Sequence;
@@ -127,6 +129,9 @@ int main()
     unsigned int max_mask = get_mask(N-1);
     max_mask=BUFMASK;
 
+    unsigned int tapIndexStart = 0; //Where the sequences for the current taps start
+    //For the purpose of post-analysis characterization
+
     for (taps = 1; taps < N; ++taps)
     {
         printf("Analyzying taps %x\n", taps);
@@ -138,6 +143,9 @@ int main()
         seqs[taps][value] = 1;
         printf("Starting search\n");
         max_mask = mask;
+
+        tapIndexStart = seq_count;
+
         while(done == 0)
         {
             next = step_lfsr(taps, value, max_mask);
@@ -216,6 +224,7 @@ int main()
                     if(next == 0)
                     {
                         done = 1;
+
                     }
                     else
                     {
@@ -231,13 +240,27 @@ int main()
             value = next;
 
         }
+
+        unsigned int len_counts[BUFL*sizeof(unsigned int)];
+        memset(len_counts,0,BUFL*sizeof(unsigned int));
+        for(unsigned int i = tapIndexStart; i < seq_count; ++i)
+        {
+            len_counts[sequences[i].length]+=1;
+        }
+        for(unsigned int i = tapIndexStart; i < seq_count; ++i)
+        {
+            sequences[i].diversity = len_counts[sequences[i].length];
+            sequences[i].chance =
+               len_counts[sequences[i].length] * sequences[i].length*BUFL/(max_mask+1);
+        }
+
     }
 
 
-    printf("taps lgth\n");
+    printf("taps dvsty  chnce  lgth seq\n");
     for(unsigned int i = 0; i < seq_count; ++i)
     {
-        if(i < 20)
+        if(i < 32)
         {
             if(sequences[i].index == 2)
             {
@@ -251,7 +274,9 @@ int main()
                 printf("     ");
             }
 
-            printf("%04i ",
+            printf("%04i % 7.2f%% %04x ",
+                sequences[i].diversity,
+                100.0*sequences[i].chance/BUFL,
                 sequences[i].length
                 );
            
