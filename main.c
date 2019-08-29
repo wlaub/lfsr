@@ -9,7 +9,7 @@
 #define MAIN_SEQ 0x10000
 #define SEQ_MASK (int)(0x0ffff)
 
-#define INVERT 0
+#define INVERT 1
 
 #define MAX_SEQS 100000
 
@@ -190,7 +190,6 @@ int main()
                 {
                     seqs[taps][value] |= MAIN_SEQ;
                     sequences[seq_count].values[seqBufferIndex] = value;
-                    ++seqBufferIndex;
 
                     lock_seqs(seqs[taps], sequence, max_mask);
 
@@ -238,13 +237,13 @@ int main()
     printf("taps lgth\n");
     for(unsigned int i = 0; i < seq_count; ++i)
     {
-        if(i < 10)
+        if(i < 20)
         {
             if(sequences[i].index == 2)
             {
-            printf("%04x ",
-                sequences[i].taps
-                );
+                printf("%04x ",
+                    sequences[i].taps
+                    );
  
             }
             else
@@ -252,10 +251,23 @@ int main()
                 printf("     ");
             }
 
-            printf("%04i\n",
+            printf("%04i ",
                 sequences[i].length
                 );
-            
+           
+            for(int j = 0; j < sequences[i].length && j < 20; ++j)
+            {
+                if((sequences[i].values[j]&1) == 0)
+                {
+                    printf("_");
+                }
+                else
+                {
+                    printf("-");
+                }
+            }
+
+            printf("\n");
         }
     }
 /*
