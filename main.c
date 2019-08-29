@@ -34,26 +34,19 @@ unsigned int step_lfsr(unsigned int taps, unsigned int state, unsigned int mask)
     return result;
 }
 
-void lock_seqs(unsigned int* data, unsigned short sequence, unsigned int mask, unsigned int* counts)
+unsigned int lock_seqs(unsigned int* data, unsigned short sequence, unsigned int mask)
 {
-    counts[0] = 0;
-    counts[1] = 0;
+    unsigned int result = 0;
     for(unsigned int i = 0; i <= mask; ++i)
     {
         if((data[i] &SEQ_MASK) == 1)
         {
-            if((data[i]&MAIN_SEQ) == 0)//Then transient
-            {
-                counts[1] +=1;
-            }
-            else
-            {
-                counts[0] +=1;
-            }
+            result += 1;
 
             data[i] = ((data[i]&(~SEQ_MASK)) | (sequence&SEQ_MASK));
         }
     }
+    return result;
 }
 
 unsigned int get_next_empty(unsigned int* data, unsigned int mask)
@@ -72,7 +65,6 @@ typedef struct
 {
     unsigned short taps;
     unsigned short index;
-    unsigned short transients;
     unsigned short length;
     unsigned short values[BUFL];
 } 
@@ -155,6 +147,9 @@ int main()
             {
                 if((reg&SEQ_MASK) != 1) //We hit a previous sequence
                 {
+                    printf("This shouldn't have happened. Figure out what went wrong.");
+                    return 42;
+                    /*
                     //go through and flag existing 1-flags as the found sequence
                     if(seqs[taps][value] != 0)
                     {
@@ -163,7 +158,7 @@ int main()
                     }
 
                     seqs[taps][value]=1;
-                    lock_seqs(seqs[taps], reg&SEQ_MASK, max_mask, lock_counts);
+                    lock_seqs(seqs[taps], reg&SEQ_MASK, max_mask);
                     for(unsigned int i = 0; i < seq_count; ++i)
                     {
                         if(sequences[i].taps == taps 
@@ -183,6 +178,7 @@ int main()
                     {
                         seqs[taps][next] = 1;
                     }
+                    */
                 }
                 else if((reg&MAIN_SEQ) == 0) //We are now looping
                 {
@@ -196,20 +192,19 @@ int main()
                     sequences[seq_count].values[seqBufferIndex] = value;
                     ++seqBufferIndex;
 
-                    lock_seqs(seqs[taps], sequence, max_mask, lock_counts);
+                    lock_seqs(seqs[taps], sequence, max_mask);
 
                     if (sequence > most_high) 
                     {
-                        most_high = sequence;
-                        most_high_taps = taps;
+                       most_high = sequence;
+                       most_high_taps = taps;
                     }
 
                     unsigned short length = seqBufferIndex;
 
                     sequences[seq_count].taps = taps;
                     sequences[seq_count].index = sequence;
-                    sequences[seq_count].length = lock_counts[0];
-                    sequences[seq_count].transients = lock_counts[1];
+                    sequences[seq_count].length = seqBufferIndex;
 
                     sequence += 1;
                     seq_count +=1;
@@ -240,10 +235,10 @@ int main()
     }
 
 
-    printf("taps trns lgth\n");
+    printf("taps lgth\n");
     for(unsigned int i = 0; i < seq_count; ++i)
     {
-        if(sequences[i].transients != 0)
+        if(i < 10)
         {
             if(sequences[i].index == 2)
             {
@@ -257,8 +252,7 @@ int main()
                 printf("     ");
             }
 
-            printf("%04i %04i\n",
-                sequences[i].transients,
+            printf("%04i\n",
                 sequences[i].length
                 );
             
