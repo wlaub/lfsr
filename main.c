@@ -339,18 +339,54 @@ int main()
     printf("%i different sequence lengths\n", lenCount);
 
     unsigned int entryCount = 0;
-    printf("taps dvsty  chnce  lgth seq\n");   
+
+    FILE* fp = fopen("length_lookup", "wb");
+    //Format:
+    //0     length 0 (2)
+    //2     sequence count = N (2)
+    //4     maxdiversity (2)
+    //6     sequence 0 (6)
+    //  6       taps (2)
+    //  8       diversity (2)
+    //  10      chance (2)
+    //12    sequence 1 (6)
+    //      ...
+    //6+6*N length 1 (2)
+
+    printf("taps dvsty  chnce  lgth seq\n");       
     for(unsigned int i = 0; i < BUFL; ++i)
     {
-        for(unsigned int j = i*BUFL; lengthLookup[j]!= 0; ++j)
+        unsigned short maxDiversity = 0;
+        unsigned int j = 0;
+        for(j = i*BUFL; lengthLookup[j]!= 0; ++j)
         {
             entryCount += 1;
+            if(lengthLookup[j]->diversity > maxDiversity)
+            {
+                maxDiversity = lengthLookup[j]->diversity;
+            }
             if(i == 11)
             {
                 print_sequence(lengthLookup[j], 1);
             }
         }
+        unsigned short sequenceCount = j-i*BUFL;
+        //write header
+        if(sequenceCount > 0)
+        {
+            fwrite(&sequenceCount, sizeof(unsigned short), 1, fp);
+            fwrite(&maxDiversity, sizeof(unsigned short), 1, fp); 
+            for(unsigned int j = i*BUFL; lengthLookup[j]!= 0; ++j)
+            {
+                fwrite(&(lengthLookup[j]->taps), sizeof(unsigned short), 1, fp);
+                fwrite(&(lengthLookup[j]->diversity), sizeof(unsigned short), 1, fp);
+                fwrite(&(lengthLookup[j]->chance), sizeof(unsigned short), 1, fp);
+                //write data
+            }
+        }
+
     }
+    fclose(fp);
     printf("Found %i total lookup table entries = %i B\n", entryCount, entryCount*6);
 
     printf("taps dvsty  chnce  lgth seq\n");
