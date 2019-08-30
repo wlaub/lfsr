@@ -72,6 +72,54 @@ typedef struct
 } 
 Sequence;
 
+unsigned int find_last_sequence(Sequence** buffer, unsigned int length)
+{
+//Find the index of the first available slot in the buffer for sequences of
+//the given length.
+    unsigned int index = 0;
+    while(buffer[length*BUFL+index] != 0)
+    {
+        index +=1;
+    }
+    return index;
+}
+
+void print_sequence(Sequence* sequence, int forceShow)
+{
+        if(sequence->index == 2 || forceShow)
+        {
+            printf("%04x ",
+                sequence->taps
+                );
+
+        }
+        else
+        {
+            printf("     ");
+        }
+
+        printf("%04i % 7.2f%% %04x ",
+            sequence->diversity,
+            100.0*sequence->chance/BUFL,
+            sequence->length
+            );
+       
+        for(int j = 0; j < sequence->length && j < 20; ++j)
+        {
+            if((sequence->values[j]&1) == 0)
+            {
+                printf("_");
+            }
+            else
+            {
+                printf("-");
+            }
+        }
+
+        printf("\n");
+
+}
+
 int main()
 {
 
@@ -82,6 +130,10 @@ int main()
     Sequence* sequences;
     sequences = malloc(sizeof(Sequence)*MAX_SEQS);
     memset(sequences, 0, sizeof(Sequence)*MAX_SEQS);
+
+    Sequence** lengthLookup; //Sequence length->sequences
+    lengthLookup = malloc(sizeof(Sequence*)*BUFL*BUFL);
+    memset(lengthLookup, 0, sizeof(Sequence*)*BUFL*BUFL);
 
     for(unsigned int i = 0; i < N; ++i)
     {
@@ -128,6 +180,9 @@ int main()
 
     unsigned int max_mask = get_mask(N-1);
     max_mask=BUFMASK;
+
+    unsigned int masterSeqCount[BUFL*sizeof(unsigned int)];
+    memset(masterSeqCount, 0, BUFL*sizeof(unsigned int));
 
     unsigned int tapIndexStart = 0; //Where the sequences for the current taps start
     //For the purpose of post-analysis characterization
@@ -211,7 +266,14 @@ int main()
 
                     sequences[seq_count].taps = taps;
                     sequences[seq_count].index = sequence;
-                    sequences[seq_count].length = seqBufferIndex;
+                    sequences[seq_count].length = length;
+
+                    masterSeqCount[length] += 1;
+                    unsigned int lookupIndex = find_last_sequence(lengthLookup, length);
+                    if(lookupIndex == 0 || (lookupIndex > 0 && lengthLookup[length*BUFL+lookupIndex-1]->taps != taps))
+                    {
+                        lengthLookup[length*BUFL+lookupIndex] = &sequences[seq_count];
+                    }
 
                     sequence += 1;
                     seq_count +=1;
@@ -257,42 +319,46 @@ int main()
     }
 
 
+    unsigned int maxLen = 0;
+    unsigned int maxLenAmt = 0;
+    unsigned int lenCount = 0;
+    for(int i = 0; i < BUFL; ++i)
+    {
+        if(masterSeqCount[i] > maxLenAmt)
+        {
+            maxLenAmt = masterSeqCount[i];
+            maxLen = i;
+        }
+        if(masterSeqCount[i] > 0)
+        {
+            lenCount += 1;
+            printf("%4ix%4i\n", i, masterSeqCount[i]);
+        }
+    }
+    printf("Most common length: %i appears %i times.\n", maxLen, maxLenAmt);
+    printf("%i different sequence lengths\n", lenCount);
+
+    unsigned int entryCount = 0;
+    printf("taps dvsty  chnce  lgth seq\n");   
+    for(unsigned int i = 0; i < BUFL; ++i)
+    {
+        for(unsigned int j = i*BUFL; lengthLookup[j]!= 0; ++j)
+        {
+            entryCount += 1;
+            if(i == 11)
+            {
+                print_sequence(lengthLookup[j], 1);
+            }
+        }
+    }
+    printf("Found %i total lookup table entries = %i B\n", entryCount, entryCount*6);
+
     printf("taps dvsty  chnce  lgth seq\n");
     for(unsigned int i = 0; i < seq_count; ++i)
     {
         if(i < 32)
         {
-            if(sequences[i].index == 2)
-            {
-                printf("%04x ",
-                    sequences[i].taps
-                    );
- 
-            }
-            else
-            {
-                printf("     ");
-            }
-
-            printf("%04i % 7.2f%% %04x ",
-                sequences[i].diversity,
-                100.0*sequences[i].chance/BUFL,
-                sequences[i].length
-                );
-           
-            for(int j = 0; j < sequences[i].length && j < 20; ++j)
-            {
-                if((sequences[i].values[j]&1) == 0)
-                {
-                    printf("_");
-                }
-                else
-                {
-                    printf("-");
-                }
-            }
-
-            printf("\n");
+            print_sequence(&sequences[i], 0);
         }
     }
 /*
