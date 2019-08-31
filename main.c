@@ -354,7 +354,7 @@ int main()
     //6+6*N length 1 (2)
 
     printf("taps dvsty  chnce  lgth seq\n");       
-    for(unsigned int i = 0; i < BUFL; ++i)
+    for(unsigned short i = 0; i < BUFL; ++i)
     {
         unsigned short maxDiversity = 0;
         unsigned int j = 0;
@@ -374,6 +374,7 @@ int main()
         //write header
         if(sequenceCount > 0)
         {
+            fwrite(&i, sizeof(unsigned short), 1, fp);
             fwrite(&sequenceCount, sizeof(unsigned short), 1, fp);
             fwrite(&maxDiversity, sizeof(unsigned short), 1, fp); 
             for(unsigned int j = i*BUFL; lengthLookup[j]!= 0; ++j)

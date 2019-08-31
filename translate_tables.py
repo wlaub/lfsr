@@ -51,5 +51,69 @@ So the sequence goes:
 
 This sort of procedure is always going to be required to map a param value 0-4096 into a nearest discrete result. The first parameter can probably afford a lookup vector table, but you would need the same size table for every sublist, and that gets out of hand fast.
 
+The first lookup table adds 16KB of mostly redundant data, but should make for fast access and be acceptable overhead for any mcu that can already take 80KB. Teensy 4 has plenty
+
 """
+import struct
+import sys
+
+class Sequence():
+
+    def __init__(self, taps, params, norms):
+        self.taps = taps
+        self.params = [x/y for x,y in zip(params,norms)]
+
+
+    def __repr__(self):
+        return f'{self.taps}, {self.params}'
+
+class SeqTable():
+
+    def __init__(self, filename):
+        self.load(filename)
+
+
+    def load(self, filename):
+        self.infile = filename
+        raw = open(filename, 'rb').read()
+        
+        self.data = {} #lengths to sequences
+        
+        while True:
+            if len(raw) == 0: break
+            length, = struct.unpack('H', raw[:2]); raw=raw[2:]
+            seq_count, = struct.unpack('H', raw[:2]); raw=raw[2:]
+            param_norms, = struct.unpack('H', raw[:2]); raw=raw[2:]
+            param_norms = (param_norms, 4096)
+            self.data[length] = tdata = []
+            print(f'{length} {seq_count} {param_norms}')
+
+            for seq_index in range(seq_count):
+                ttaps, = struct.unpack('H', raw[:2]); raw=raw[2:]
+                tparams = struct.unpack('HH', raw[:4]); raw=raw[4:]
+                tseq = Sequence(ttaps, tparams, param_norms)
+                tdata.append(tseq)
+
+
+if __name__ == '__main__':
+    table = SeqTable("length_lookup_inv")
+
+    print(f'{len(table.data.keys())}')
+    print(table.data[11])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
