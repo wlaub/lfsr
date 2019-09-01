@@ -341,6 +341,10 @@ class SeqTable():
         """
 
         adds = list(self.master_index.values())
+        #address should point to the 0 of the index
+        #for the actual data package, 4*4096+1+lookup_value
+        adds = [x+4*4096+1 for x in adds] 
+
         top = struct.pack('I'*len(self.master_index), *adds)
         bottom = struct.pack('H'*len(self.data_index), *self.data_index)
 
