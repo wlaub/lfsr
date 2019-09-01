@@ -242,6 +242,9 @@ class Sequence():
 class SeqTable():
 
     def __init__(self, filename):
+        self.master_index = None
+        self.data_index = None
+ 
         self.load(filename)
 
 
@@ -284,7 +287,7 @@ class SeqTable():
         expanded_table = []
         length_index = 0
         for index in range(4096):
-            if index >= length_map_items[length_index+1][1][0]:
+            if index >= length_map_items[length_index][1][0]:
                 length_index += 1
             expanded_table.append(length_map_items[length_index][0])
 
@@ -320,20 +323,95 @@ class SeqTable():
         for length in lengths:
             sequences = sorted(self.data[length], key=lambda x: x._sort_key(reverse))
 
+            result.append(length)
             data_chunk = generate_index(sequences, 0, 2)
             result.extend(data_chunk)
             for desired, actual in enumerate(expanded_lookup):
                 if actual == length:
                     master_index[desired] = offset
-            offset+=len(data_chunk)*2
+            offset+=len(data_chunk)*2+2
 
-
-
+        self.master_index = master_index
+        self.data_index = result
         return master_index, result
 
+    def write_data(self, filename):
+        """
+        Write the master_index and result to a binary file
+        """
+
+        adds = list(self.master_index.values())
+        top = struct.pack('I'*len(self.master_index), *adds)
+        bottom = struct.pack('H'*len(self.data_index), *self.data_index)
+
+        with open(filename, 'wb') as f:
+            f.write(top)
+            f.write(bottom)
+
+
+    def get_taps(self, length, params):
+        """
+        Find and return the taps value for the given sequence length
+        and params
+        """
+        if self.master_index == None: return 0
+        master_idx = self.master_index
+        data = self.data_index
+
+        address = int(master_idx[length]/2)+1
+        print(f'Taps for {length} = {data[address-1]}')
+        print(data[address:address+2])
+        N = data[address+1]
+        ileft = 0
+        iright = N
+        i = 0
+        while True:
+            data_range = data[address+i*2], data[address+2+i*2]
+            if params[0] < data_range[0]:
+                i = int((i+ileft)/2)
+            elif params[0] >= data_range[1]:
+                i = int((i+iright)/2)
+            else:
+                subaddress = int(data[address+3+i*2]/2)+address
+                jleft = 0
+                jright = data[subaddress+1]
+                j = 0
+                while True:
+                    data_range = data[subaddress+j*2], data[subaddress+2+j*2]
+                    if params[1] < data_range[0]:
+                        j = int((j+jleft)/2)
+                    elif params[1] >= data_range[1]:
+                        j = int((j+jright)/2)
+                    else:
+                        taps = int(data[subaddress+3+j*2])
+                        return taps
+
+
+    def print_seqs(self, length):
+        if self.master_index == None: return
+        master_idx = self.master_index
+        data = self.data_index
+
+        address = int(master_idx[length]/2)+1
+        print(f'Data for {length} = {data[address-1]}')
+        print(data[address:address+2])
+        for i in range(data[address+1]):
+            subaddress = int(data[address+3+i*2]/2)+address
+            data_range = data[address+i*2], data[address+2+i*2]
+            print(f'{i}: {data_range[0]} to {data_range[1]}: {data[subaddress:subaddress+2]}')
+            for j in range(data[subaddress+1]):
+                data_range = data[subaddress+j*2], data[subaddress+2+j*2]
+                taps = int(data[subaddress+3+j*2])
+                print(f'  {j}: {data_range[0]} to {data_range[1]} : {taps}')
+     
 
 if __name__ == '__main__':
     table = SeqTable("length_lookup_inv")
+    table.spread(reverse=True)
+    table.write_data('lookup_inv_0.taps')
+    table.spread(reverse=False)
+    table.write_data('lookup_inv_1.taps')
+
 
     print(f'{len(table.data.keys())}')
     pprint.pprint(
@@ -344,25 +422,20 @@ if __name__ == '__main__':
     print(data[:100])
     print(len(data))
     print(len(master_idx))
+#    print(master_idx)
 
+    length = 17
+    table.print_seqs(length)    
 
-    address = int(master_idx[17]/2)
-    print(data[address:address+2])
-    for i in range(data[address+1]):
-        subaddress = int(data[address+3+i*2]/2)+address
-        data_range = data[address+i*2], data[address+2+i*2]
-        print(f'{i}: {data_range[0]} to {data_range[1]}: {data[subaddress:subaddress+2]}')
-        for j in range(data[subaddress+1]):
-            data_range = data[subaddress+j*2], data[subaddress+2+j*2]
-            taps = int(data[subaddress+3+j*2])
-            print(f'  {j}: {data_range[0]} to {data_range[1]} : {taps}')
-     
+    taps = table.get_taps(3333, [32767, 32767])
+    print(taps)
+    assert taps == 3072
 
+    taps = table.get_taps(17, [32767, 32767])
+    print(taps)
+    assert taps == 983 
 
-
-
-
-
+    print(max(master_idx.values()))
 
 
 
