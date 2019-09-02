@@ -126,15 +126,18 @@ results = spread_values(OrderedDict([(0,1),(.5,3),(1,1)]))
 pprint.pprint(results)
 
 
-def generate_index(sequences, depth_index, max_depth):
+def generate_index(sequences, depth_index, max_depth, reverse = False):
     """
     Recursively generate a searchable index of data
     """
+    
+
     param_values = []
     param_counts = []
     for seq in sequences:
         taps = seq.taps
         params = seq.params
+        if reverse: params = params[::-1]
         if not params[depth_index] in param_values:
             param_values.append(params[depth_index])
             param_counts.append(1)
@@ -161,6 +164,7 @@ def generate_index(sequences, depth_index, max_depth):
         for seq in sequences:
             taps = seq.taps
             params = seq.params
+            if reverse: params = params[::-1]
             #Generate index on the segment of sequences:
             #mapping spread_map index to taps value
             #compute length of resulting chunk
@@ -324,7 +328,7 @@ class SeqTable():
             sequences = sorted(self.data[length], key=lambda x: x._sort_key(reverse))
 
             result.append(length)
-            data_chunk = generate_index(sequences, 0, 2)
+            data_chunk = generate_index(sequences, 0, 2, reverse)
             result.extend(data_chunk)
             for desired, actual in enumerate(expanded_lookup):
                 if actual == length:
